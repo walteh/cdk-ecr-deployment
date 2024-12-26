@@ -61,7 +61,11 @@ func GetECRLogin(region string) ([]ECRAuth, error) {
 		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
 	}
 
-	client := ecr.NewFromConfig(cfg)
+	client := ecr.NewFromConfig(cfg, func(opts *ecr.Options) {
+		if os.Getenv("AWS_ENDPOINT_URL") != "" {
+			opts.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
+		}
+	})
 	input := &ecr.GetAuthorizationTokenInput{}
 
 	resp, err := client.GetAuthorizationToken(context.TODO(), input)
@@ -99,7 +103,7 @@ type ImageOpts struct {
 }
 
 func NewImageOpts(uri string, arch string) *ImageOpts {
-	requireECRLogin := strings.Contains(uri, "dkr.ecr") && strings.Contains(uri, "amazonaws.com")
+	requireECRLogin := strings.Contains(uri, "dkr.ecr")
 	if requireECRLogin {
 		return &ImageOpts{uri, requireECRLogin, GetECRRegion(uri), "", arch}
 	} else {
