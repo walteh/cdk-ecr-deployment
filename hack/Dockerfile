@@ -1,11 +1,11 @@
 FROM public.ecr.aws/docker/library/golang:1 AS build
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=arm64
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=arm64 
 
 WORKDIR /app
 
 COPY . .
 
-RUN cd lambda && make lambda OUTPUT=/out/bootstrap 
+RUN cd lambda && make lambda OUTPUT=/out/bootstrap BUILDTAGS="exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp lambda.norpc" GO_DYN_FLAGS="-ldflags='-s -w -extldflags=-static'"
 
 FROM oven/bun:alpine AS bun
 
@@ -30,7 +30,7 @@ RUN bun install
 
 ARG ROOT_GO_MOD_PATH
 
-
+RUN rm -rf hack
 
 # RUN jq -r '.version = "'$(cat /tmp/version)'"' package.json > tmp.$$ && mv tmp.$$ package.json
 RUN jq -r '.jsii.targets.go.moduleName = "'${ROOT_GO_MOD_PATH}'"' package.json > tmp.$$ && mv tmp.$$ package.json
@@ -38,7 +38,7 @@ RUN jq -r '.jsii.targets.go.moduleName = "'${ROOT_GO_MOD_PATH}'"' package.json >
 # ENV CGO_ENABLED=0 GOOS=linux GOARCH=arm64
 # RUN cd lambda && make lambda OUTPUT=./out/bootstrap BUILDTAGS="exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp lambda.norpc" GO_DYN_FLAGS="-ldflags='-extldflags=-static'"
 
-COPY --from=build /out/bootstrap ./out/bootstrap
+COPY --from=build /out/bootstrap ./lambda/out/bootstrap
 
 RUN bun run compile
 
