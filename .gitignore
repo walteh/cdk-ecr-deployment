@@ -57,3 +57,5 @@ tsconfig.json
 !/.github/workflows/upgrade-main.yml
 !/.github/workflows/upgrade-dev-deps-main.yml
 !/.projenrc.ts
+
+!hack/**/*.tgz
