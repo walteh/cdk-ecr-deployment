@@ -63,6 +63,11 @@ func GetECRLogin(region string) ([]ECRAuth, error) {
 
 	client := ecr.NewFromConfig(cfg, func(opts *ecr.Options) {
 		if os.Getenv("AWS_ENDPOINT_URL") != "" {
+			opts.EndpointOptions.UseDualStackEndpoint = aws.DualStackEndpointState(aws.DualStackEndpointStateEnabled)
+			if !strings.Contains(os.Getenv("AWS_ENDPOINT_URL"), "amazonaws.com") {
+				opts.EndpointOptions.DisableHTTPS = true
+			}
+			// opts.EndpointResolver = ecr.EndpointResolverFromURL(os.Getenv("AWS_ENDPOINT_URL"))
 			opts.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
 		}
 	})
@@ -185,6 +190,11 @@ func GetSecret(secretId string) (secret string, err error) {
 	cfg, err := config.LoadDefaultConfig(
 		context.TODO(),
 	)
+
+	if os.Getenv("AWS_ENDPOINT_URL") != "" {
+		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
+	}
+
 	log.Printf("get secret id: %s of region: %s", secretId, cfg.Region)
 	if err != nil {
 		return "", fmt.Errorf("api client configuration error: %v", err.Error())
