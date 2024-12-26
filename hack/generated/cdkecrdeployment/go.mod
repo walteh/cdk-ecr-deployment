@@ -1,4 +1,4 @@
-module github.com/walteh/cdk-ecr-deployment-go/hack/generated/cdkecrdeployment
+module github.com/walteh/cdk-ecr-deployment/hack/generated/cdk-ecr-deployment-go/cdkecrdeployment
 
 go 1.22.0
 

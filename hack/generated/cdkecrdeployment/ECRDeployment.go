@@ -2,11 +2,11 @@ package cdkecrdeployment
 
 import (
 	_jsii_ "github.com/aws/jsii-runtime-go/runtime"
-	_init_ "github.com/walteh/cdk-ecr-deployment-go/hack/generated/cdkecrdeployment/jsii"
+	_init_ "github.com/walteh/cdk-ecr-deployment/hack/generated/cdk-ecr-deployment-go/cdkecrdeployment/jsii"
 
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
 	"github.com/aws/constructs-go/constructs/v10"
-	"github.com/walteh/cdk-ecr-deployment-go/hack/generated/cdkecrdeployment/internal"
+	"github.com/walteh/cdk-ecr-deployment/hack/generated/cdk-ecr-deployment-go/cdkecrdeployment/internal"
 )
 
 type ECRDeployment interface {

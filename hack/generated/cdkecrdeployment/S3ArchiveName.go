@@ -2,7 +2,7 @@ package cdkecrdeployment
 
 import (
 	_jsii_ "github.com/aws/jsii-runtime-go/runtime"
-	_init_ "github.com/walteh/cdk-ecr-deployment-go/hack/generated/cdkecrdeployment/jsii"
+	_init_ "github.com/walteh/cdk-ecr-deployment/hack/generated/cdk-ecr-deployment-go/cdkecrdeployment/jsii"
 )
 
 type S3ArchiveName interface {
