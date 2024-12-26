@@ -99,7 +99,7 @@ type ImageOpts struct {
 }
 
 func NewImageOpts(uri string, arch string) *ImageOpts {
-	requireECRLogin := strings.Contains(uri, "dkr.ecr")
+	requireECRLogin := strings.Contains(uri, "dkr.ecr") && strings.Contains(uri, "amazonaws.com")
 	if requireECRLogin {
 		return &ImageOpts{uri, requireECRLogin, GetECRRegion(uri), "", arch}
 	} else {
