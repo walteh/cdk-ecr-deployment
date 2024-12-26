@@ -233,11 +233,18 @@ func NewS3File(cfg aws.Config, s3uri S3Uri) (*S3File, error) {
 		return nil, err
 	}
 
+	var size int64
+	if output.ContentLength != nil {
+		size = *output.ContentLength
+	} else {
+		size = 0
+	}
+
 	return &S3File{
 		s3uri:  s3uri,
 		client: client,
 		i:      0,
-		size:   output.ContentLength,
+		size:   size,
 		// The total cache size is `iolimits.CacheBlockCount * iolimits.BlockSize`
 		rcache: NewBlockCache(iolimits.CacheBlockCount),
 	}, nil

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -53,6 +54,11 @@ func GetECRLogin(region string) ([]ECRAuth, error) {
 	if err != nil {
 		return nil, fmt.Errorf("api client configuration error: %v", err.Error())
 	}
+
+	if os.Getenv("AWS_ENDPOINT_URL") != "" {
+		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
+	}
+
 	client := ecr.NewFromConfig(cfg)
 	input := &ecr.GetAuthorizationTokenInput{}
 
