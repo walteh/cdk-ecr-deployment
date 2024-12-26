@@ -59,11 +59,17 @@ func GetECRLogin(region string) ([]ECRAuth, error) {
 
 	if os.Getenv("AWS_ENDPOINT_URL") != "" {
 		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
+		// dont verify tls
+		// cfg.HTTPClient = &http.Client{
+		// 	Transport: &http.Transport{
+		// 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		// 	},
+		// }
 	}
 
 	client := ecr.NewFromConfig(cfg, func(opts *ecr.Options) {
 		if os.Getenv("AWS_ENDPOINT_URL") != "" {
-			opts.EndpointOptions.UseDualStackEndpoint = aws.DualStackEndpointState(aws.DualStackEndpointStateEnabled)
+			// opts.EndpointOptions.UseDualStackEndpoint = aws.DualStackEndpointState(aws.DualStackEndpointStateEnabled)
 			if !strings.Contains(os.Getenv("AWS_ENDPOINT_URL"), "amazonaws.com") {
 				opts.EndpointOptions.DisableHTTPS = true
 			}
