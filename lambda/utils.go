@@ -55,6 +55,8 @@ func GetECRLogin(region string) ([]ECRAuth, error) {
 		return nil, fmt.Errorf("api client configuration error: %v", err.Error())
 	}
 
+	log.Printf("AWS_ENDPOINT_URL: %s", os.Getenv("AWS_ENDPOINT_URL"))
+
 	if os.Getenv("AWS_ENDPOINT_URL") != "" {
 		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
 	}
