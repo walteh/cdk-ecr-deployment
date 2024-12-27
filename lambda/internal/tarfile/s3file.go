@@ -224,7 +224,9 @@ func (f *S3File) Clone() *S3File {
 // }
 
 func NewS3File(ctx context.Context, cfg aws.Config, s3uri S3Uri) (*S3File, error) {
-	client := s3.NewFromConfig(cfg)
+	client := s3.NewFromConfig(cfg, func(options *s3.Options) {
+		options.UsePathStyle = true
+	})
 	output, err := client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: &s3uri.Bucket,
 		Key:    &s3uri.Key,
