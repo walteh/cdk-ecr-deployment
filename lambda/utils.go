@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -105,7 +104,7 @@ func (s *ImageOpts) SetCreds(creds string) {
 	s.creds = creds
 }
 
-func (s *ImageOpts) NewSystemContext(ctx context.Context) (*types.SystemContext, error) {
+func (s *ImageOpts) NewSystemContext(ctx context.Context, cfg aws.Config) (*types.SystemContext, error) {
 	ctxd := &types.SystemContext{
 		DockerRegistryUserAgent: "ecr-deployment",
 		DockerAuthConfig:        &types.DockerAuthConfig{},
@@ -126,7 +125,7 @@ func (s *ImageOpts) NewSystemContext(ctx context.Context) (*types.SystemContext,
 		if s.requireECRLogin {
 			log.Printf("ECR auto login mode for %v", s.uri)
 
-			auths, err := GetECRLogin(ctx, aws.Config{}, s.region)
+			auths, err := GetECRLogin(ctx, cfg, s.region)
 			if err != nil {
 				return nil, err
 			}
@@ -168,9 +167,6 @@ func GetCredsType(s string) string {
 }
 
 func GetSecret(ctx context.Context, cfg aws.Config, secretId string) (secret string, err error) {
-	if os.Getenv("AWS_ENDPOINT_URL") != "" {
-		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
-	}
 
 	log.Printf("get secret id: %s of region: %s", secretId, cfg.Region)
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/stretchr/testify/assert"
@@ -36,11 +37,14 @@ func TestMain(t *testing.T) {
 	destRef, err := alltransports.ParseImageName(destImage)
 	assert.NoError(t, err)
 
+	cfg, err := config.LoadDefaultConfig(ctx)
+	assert.NoError(t, err)
+
 	srcOpts := NewImageOpts(srcImage, "")
-	srcCtx, err := srcOpts.NewSystemContext(ctx)
+	srcCtx, err := srcOpts.NewSystemContext(ctx, cfg)
 	assert.NoError(t, err)
 	destOpts := NewImageOpts(destImage, "")
-	destCtx, err := destOpts.NewSystemContext(ctx)
+	destCtx, err := destOpts.NewSystemContext(ctx, cfg)
 	assert.NoError(t, err)
 
 	policyContext, err := newPolicyContext()
@@ -57,10 +61,13 @@ func TestMain(t *testing.T) {
 
 func TestNewImageOpts(t *testing.T) {
 	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx)
+	assert.NoError(t, err)
+
 	srcOpts := NewImageOpts("s3://cdk-ecr-deployment/nginx.tar:nginx:latest", "arm64")
-	_, err := srcOpts.NewSystemContext(ctx)
+	_, err = srcOpts.NewSystemContext(ctx, cfg)
 	assert.NoError(t, err)
 	destOpts := NewImageOpts("dir:/tmp/nginx.dir", "arm64")
-	_, err = destOpts.NewSystemContext(ctx)
+	_, err = destOpts.NewSystemContext(ctx, cfg)
 	assert.NoError(t, err)
 }

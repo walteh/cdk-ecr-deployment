@@ -107,13 +107,13 @@ func handler(ctx context.Context, event cfn.Event) (physicalResourceID string, d
 
 		srcOpts := NewImageOpts(srcImage, imageArch)
 		srcOpts.SetCreds(srcCreds)
-		srcCtx, err := srcOpts.NewSystemContext(ctx)
+		srcCtx, err := srcOpts.NewSystemContext(ctx, cfg)
 		if err != nil {
 			return physicalResourceID, data, err
 		}
 		destOpts := NewImageOpts(destImage, imageArch)
 		destOpts.SetCreds(destCreds)
-		destCtx, err := destOpts.NewSystemContext(ctx)
+		destCtx, err := destOpts.NewSystemContext(ctx, cfg)
 		if err != nil {
 			return physicalResourceID, data, err
 		}
