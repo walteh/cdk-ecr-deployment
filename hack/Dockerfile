@@ -3,9 +3,13 @@ ENV CGO_ENABLED=0 GOOS=linux GOARCH=arm64
 
 WORKDIR /app
 
-COPY . .
+COPY lambda/go.mod lambda/go.sum ./
 
-RUN cd lambda && make lambda OUTPUT=/out/bootstrap BUILDTAGS="exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp lambda.norpc" GO_DYN_FLAGS="-ldflags='-s -w -extldflags=-static'"
+RUN go mod download
+
+COPY lambda/ .
+
+RUN make lambda OUTPUT=/out/bootstrap BUILDTAGS="exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp lambda.norpc" GO_DYN_FLAGS="-ldflags='-s -w -extldflags=-static'"
 
 FROM oven/bun:alpine AS bun
 

@@ -59,24 +59,25 @@ func GetECRLogin(region string) ([]ECRAuth, error) {
 
 	if os.Getenv("AWS_ENDPOINT_URL") != "" {
 		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
-		// dont verify tls
-		// cfg.HTTPClient = &http.Client{
-		// 	Transport: &http.Transport{
-		// 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		// 	},
-		// }
+		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+			return aws.Endpoint{
+				URL: os.Getenv("AWS_ENDPOINT_URL"),
+			}, nil
+		})
 	}
 
-	client := ecr.NewFromConfig(cfg, func(opts *ecr.Options) {
-		if os.Getenv("AWS_ENDPOINT_URL") != "" {
-			// opts.EndpointOptions.UseDualStackEndpoint = aws.DualStackEndpointState(aws.DualStackEndpointStateEnabled)
-			if !strings.Contains(os.Getenv("AWS_ENDPOINT_URL"), "amazonaws.com") {
-				opts.EndpointOptions.DisableHTTPS = true
-			}
-			// opts.EndpointResolver = ecr.EndpointResolverFromURL(os.Getenv("AWS_ENDPOINT_URL"))
-			opts.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
-		}
-	})
+	// client := ecr.NewFromConfig(cfg, func(opts *ecr.Options) {
+	// 	if os.Getenv("AWS_ENDPOINT_URL") != "" {
+	// 		// opts.EndpointOptions.UseDualStackEndpoint = aws.DualStackEndpointState(aws.DualStackEndpointStateEnabled)
+	// 		if !strings.Contains(os.Getenv("AWS_ENDPOINT_URL"), "amazonaws.com") {
+	// 			opts.EndpointOptions.DisableHTTPS = true
+	// 		}
+	// 		// opts.EndpointResolver = ecr.EndpointResolverFromURL(os.Getenv("AWS_ENDPOINT_URL"))
+	// 		opts.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
+	// 	}
+	// })
+	client := ecr.NewFromConfig(cfg)
+
 	input := &ecr.GetAuthorizationTokenInput{}
 
 	resp, err := client.GetAuthorizationToken(context.TODO(), input)
