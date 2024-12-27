@@ -8,6 +8,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
+	"os"
 	"strings"
 	"sync"
 
@@ -17,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	transport "github.com/aws/smithy-go/endpoints"
 	"github.com/golang/groupcache/lru"
 )
 
@@ -223,15 +226,30 @@ func (f *S3File) Clone() *S3File {
 // 	return
 // }
 
+// dummy ecr resolver
+type ecrResolver struct {
+}
+
+var _ s3.EndpointResolverV2 = &ecrResolver{}
+
+func (r *ecrResolver) ResolveEndpoint(ctx context.Context, p s3.EndpointParameters) (transport.Endpoint, error) {
+	if os.Getenv("AWS_ENDPOINT_URL") != "" {
+		u, err := url.Parse(os.Getenv("AWS_ENDPOINT_URL"))
+		if err != nil {
+			return transport.Endpoint{}, err
+		}
+		return transport.Endpoint{
+			URI: *u,
+		}, nil
+	}
+
+	return s3.NewDefaultEndpointResolverV2().ResolveEndpoint(ctx, p)
+}
+
 func NewS3File(ctx context.Context, cfg aws.Config, s3uri S3Uri) (*S3File, error) {
 	client := s3.NewFromConfig(cfg, func(options *s3.Options) {
 		options.UsePathStyle = true
-		// options.UseARNRegion = false
-		// if os.Getenv("AWS_ENDPOINT_URL") != "" {
-		// 	// options.EndpointResolverV2 = nil
-		// 	options.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
-		// }
-
+		options.EndpointResolverV2 = &ecrResolver{}
 	})
 	output, err := client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: &s3uri.Bucket,
