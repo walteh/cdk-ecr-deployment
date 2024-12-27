@@ -51,6 +51,8 @@ func handler(ctx context.Context, event cfn.Event) (physicalResourceID string, d
 
 	log.Printf("AWS_ENDPOINT_URL: %s", os.Getenv("AWS_ENDPOINT_URL"))
 
+	cfg.Region = "us-east-1"
+
 	if os.Getenv("AWS_ENDPOINT_URL") != "" {
 		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
 
