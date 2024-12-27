@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -49,7 +50,11 @@ func GetECRLogin(ctx context.Context, cfg aws.Config, region string) ([]ECRAuth,
 		cfg.Region = region
 	}
 
-	client := ecr.NewFromConfig(cfg)
+	client := ecr.NewFromConfig(cfg, func(options *ecr.Options) {
+		if os.Getenv("AWS_ENDPOINT_URL") != "" {
+			options.EndpointResolver = ecr.EndpointResolverFromURL(os.Getenv("AWS_ENDPOINT_URL"))
+		}
+	})
 
 	input := &ecr.GetAuthorizationTokenInput{}
 

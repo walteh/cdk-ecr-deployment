@@ -53,11 +53,7 @@ func handler(ctx context.Context, event cfn.Event) (physicalResourceID string, d
 
 	if os.Getenv("AWS_ENDPOINT_URL") != "" {
 		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
-		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				URL: os.Getenv("AWS_ENDPOINT_URL"),
-			}, nil
-		})
+
 	}
 
 	if event.RequestType == cfn.RequestDelete {

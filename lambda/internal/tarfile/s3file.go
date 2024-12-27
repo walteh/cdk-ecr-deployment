@@ -226,6 +226,11 @@ func (f *S3File) Clone() *S3File {
 func NewS3File(ctx context.Context, cfg aws.Config, s3uri S3Uri) (*S3File, error) {
 	client := s3.NewFromConfig(cfg, func(options *s3.Options) {
 		options.UsePathStyle = true
+		// if os.Getenv("AWS_ENDPOINT_URL") != "" {
+		// 	// options.EndpointResolverV2 = nil
+		// 	options.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
+		// }
+
 	})
 	output, err := client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: &s3uri.Bucket,
