@@ -16,6 +16,8 @@ import (
 
 	"github.com/aws/aws-lambda-go/cfn"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 
 	_ "cdk-ecr-deployment-handler/s3" // Install s3 transport plugin
 )
@@ -40,6 +42,23 @@ func handler(ctx context.Context, event cfn.Event) (physicalResourceID string, d
 	data = make(map[string]interface{})
 
 	log.Printf("Event: %s", Dumps(event))
+
+	// Load AWS config once at the start
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return physicalResourceID, data, fmt.Errorf("failed to load AWS config: %v", err)
+	}
+
+	log.Printf("AWS_ENDPOINT_URL: %s", os.Getenv("AWS_ENDPOINT_URL"))
+
+	if os.Getenv("AWS_ENDPOINT_URL") != "" {
+		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
+		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+			return aws.Endpoint{
+				URL: os.Getenv("AWS_ENDPOINT_URL"),
+			}, nil
+		})
+	}
 
 	if event.RequestType == cfn.RequestDelete {
 		return physicalResourceID, data, nil
@@ -66,11 +85,11 @@ func handler(ctx context.Context, event cfn.Event) (physicalResourceID string, d
 			return physicalResourceID, data, err
 		}
 
-		srcCreds, err = parseCreds(srcCreds)
+		srcCreds, err = parseCreds(ctx, cfg, srcCreds)
 		if err != nil {
 			return physicalResourceID, data, err
 		}
-		destCreds, err = parseCreds(destCreds)
+		destCreds, err = parseCreds(ctx, cfg, destCreds)
 		if err != nil {
 			return physicalResourceID, data, err
 		}
@@ -88,19 +107,17 @@ func handler(ctx context.Context, event cfn.Event) (physicalResourceID string, d
 
 		srcOpts := NewImageOpts(srcImage, imageArch)
 		srcOpts.SetCreds(srcCreds)
-		srcCtx, err := srcOpts.NewSystemContext()
+		srcCtx, err := srcOpts.NewSystemContext(ctx)
 		if err != nil {
 			return physicalResourceID, data, err
 		}
 		destOpts := NewImageOpts(destImage, imageArch)
 		destOpts.SetCreds(destCreds)
-		destCtx, err := destOpts.NewSystemContext()
+		destCtx, err := destOpts.NewSystemContext(ctx)
 		if err != nil {
 			return physicalResourceID, data, err
 		}
 
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
 		policyContext, err := newPolicyContext()
 		if err != nil {
 			return physicalResourceID, data, err
@@ -113,8 +130,6 @@ func handler(ctx context.Context, event cfn.Event) (physicalResourceID string, d
 			SourceCtx:      srcCtx,
 		})
 		if err != nil {
-			// log.Printf("Copy image failed: %v", err.Error())
-			// return physicalResourceID, data, nil
 			return physicalResourceID, data, fmt.Errorf("copy image failed: %s", err.Error())
 		}
 	}
@@ -124,12 +139,6 @@ func handler(ctx context.Context, event cfn.Event) (physicalResourceID string, d
 
 func main() {
 	lambda.Start(cfn.LambdaWrap(handler))
-}
-
-func newTimeoutContext() (context.Context, context.CancelFunc) {
-	ctx := context.Background()
-	var cancel context.CancelFunc = func() {}
-	return ctx, cancel
 }
 
 func newPolicyContext() (*signature.PolicyContext, error) {
@@ -158,15 +167,15 @@ func getStrPropsDefault(m map[string]interface{}, k string, d string) (string, e
 	return "", fmt.Errorf("can't get %v", k)
 }
 
-func parseCreds(creds string) (string, error) {
+func parseCreds(ctx context.Context, cfg aws.Config, creds string) (string, error) {
 	credsType := GetCredsType(creds)
 	if creds == "" {
 		return "", nil
 	} else if (credsType == SECRET_ARN) || (credsType == SECRET_NAME) {
-		secret, err := GetSecret(creds)
+		secret, err := GetSecret(ctx, cfg, creds)
 		return secret, err
 	} else if credsType == SECRET_TEXT {
 		return creds, nil
 	}
-	return "", fmt.Errorf("unkown creds type")
+	return "", fmt.Errorf("unknown creds type")
 }

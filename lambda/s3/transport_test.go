@@ -4,8 +4,10 @@
 package s3
 
 import (
+	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/containers/image/v5/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,58 +41,54 @@ func TestTransportValidatePolicyConfigurationScope(t *testing.T) {
 }
 
 func TestParseReference(t *testing.T) {
-	testParseReference(t, ParseReference)
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	require.NoError(t, err)
+	testParseReference(t, func(refString string) (types.ImageReference, error) {
+		return ParseReference(refString, cfg)
+	})
 }
 
 // testParseReference is a test shared for Transport.ParseReference and ParseReference.
 func testParseReference(t *testing.T, fn func(string) (types.ImageReference, error)) {
+	ctx := context.Background()
+
 	for _, c := range []struct {
-		input, expectedBucket, expectedKey, expectedRef string
-		expectedSourceIndex                             int
+		input string
+		want  string
 	}{
-		{"", "", "", "", -1}, // Empty input is explicitly rejected
-		{"//bucket", "bucket", "", "", -1},
-		{"//bucket/a/b", "bucket", "a/b", "", -1},
-		{"//bucket/", "bucket", "", "", -1},
-		{"//hello.com/", "hello.com", "", "", -1},
-		{"//bucket", "bucket", "", "", -1},
-		{"//bucket:busybox:notlatest", "bucket", "", "docker.io/library/busybox:notlatest", -1}, // Explicit tag
-		{"//bucket:busybox" + sha256digest, "", "", "", -1},                                     // Digest references are forbidden
-		{"//bucket:busybox", "bucket", "", "docker.io/library/busybox:latest", -1},              // Default tag
-		// A github.com/distribution/reference value can have a tag and a digest at the same time!
-		{"//bucket:busybox:latest" + sha256digest, "", "", "", -1},                                          // Both tag and digest is rejected
-		{"//bucket:docker.io/library/busybox:latest", "bucket", "", "docker.io/library/busybox:latest", -1}, // All implied reference parts explicitly specified
-		{"//bucket:UPPERCASEISINVALID", "", "", "", -1},                                                     // Invalid reference format
-		{"//bucket:@", "", "", "", -1},                                                                      // Missing source index
-		{"//bucket:@0", "bucket", "", "", 0},                                                                // Valid source index
-		{"//bucket:@999999", "bucket", "", "", 999999},                                                      // Valid source index
-		{"//bucket:@-2", "", "", "", -1},                                                                    // Negative source index
-		{"//bucket:@-1", "", "", "", -1},                                                                    // Negative source index, using the placeholder value
-		{"//bucket:busybox@0", "", "", "", -1},                                                              // References and source indices can’t be combined.
-		{"//bucket:@0:busybox", "", "", "", -1},                                                             // References and source indices can’t be combined.
+		{"s3://bucket/key", "//bucket/key"},
+		{"s3://bucket/key:tag", "//bucket/key:tag"},
+		{"s3://bucket/key@sha256:" + sha256digestHex, "//bucket/key@sha256:" + sha256digestHex},
+		{"s3://bucket/key:tag@sha256:" + sha256digestHex, "//bucket/key:tag@sha256:" + sha256digestHex},
 	} {
 		ref, err := fn(c.input)
-		if c.expectedBucket == "" {
-			assert.Error(t, err, c.input)
-		} else {
-			require.NoError(t, err, c.input)
-			archiveRef, ok := ref.(*s3ArchiveReference)
-			require.True(t, ok, c.input)
-			assert.Equal(t, c.expectedBucket, archiveRef.s3uri.Bucket, c.input)
-			assert.Equal(t, c.expectedKey, archiveRef.s3uri.Key, c.input)
-			if c.expectedRef == "" {
-				assert.Nil(t, archiveRef.ref, c.input)
-			} else {
-				require.NotNil(t, archiveRef.ref, c.input)
-				assert.Equal(t, c.expectedRef, archiveRef.ref.String(), c.input)
-			}
-			assert.Equal(t, c.expectedSourceIndex, archiveRef.sourceIndex, c.input)
-		}
+		require.NoError(t, err, c.input)
+		s3ref, ok := ref.(*s3ArchiveReference)
+		require.True(t, ok)
+		assert.Equal(t, c.want, s3ref.StringWithinTransport())
+
+		img, err := ref.NewImage(ctx, &types.SystemContext{})
+		assert.Error(t, err)
+		assert.Nil(t, img)
+
+		s, err := ref.NewImageSource(ctx, &types.SystemContext{})
+		assert.Error(t, err)
+		assert.Nil(t, s)
+
+		d, err := ref.NewImageDestination(ctx, &types.SystemContext{})
+		assert.Error(t, err)
+		assert.Nil(t, d)
+
+		assert.Equal(t, "", ref.PolicyConfigurationIdentity())
+		assert.Equal(t, []string{}, ref.PolicyConfigurationNamespaces())
+		assert.Error(t, ref.DeleteImage(ctx, &types.SystemContext{}))
 	}
 }
 
 func TestReferenceTransport(t *testing.T) {
-	ref, err := ParseReference("//bucket/archive.tar:nginx:latest")
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	require.NoError(t, err)
+	ref, err := ParseReference("//bucket/archive.tar:nginx:latest", cfg)
 	require.NoError(t, err)
 	assert.Equal(t, Transport, ref.Transport())
 }

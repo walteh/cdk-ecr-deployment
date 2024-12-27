@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -17,6 +18,8 @@ import (
 
 func TestMain(t *testing.T) {
 	t.Skip()
+
+	ctx := context.Background()
 
 	// reference format: s3://bucket/key[:docker-reference]
 	// valid examples:
@@ -34,14 +37,12 @@ func TestMain(t *testing.T) {
 	assert.NoError(t, err)
 
 	srcOpts := NewImageOpts(srcImage, "")
-	srcCtx, err := srcOpts.NewSystemContext()
+	srcCtx, err := srcOpts.NewSystemContext(ctx)
 	assert.NoError(t, err)
 	destOpts := NewImageOpts(destImage, "")
-	destCtx, err := destOpts.NewSystemContext()
+	destCtx, err := destOpts.NewSystemContext(ctx)
 	assert.NoError(t, err)
 
-	ctx, cancel := newTimeoutContext()
-	defer cancel()
 	policyContext, err := newPolicyContext()
 	assert.NoError(t, err)
 	defer policyContext.Destroy()
@@ -55,10 +56,11 @@ func TestMain(t *testing.T) {
 }
 
 func TestNewImageOpts(t *testing.T) {
+	ctx := context.Background()
 	srcOpts := NewImageOpts("s3://cdk-ecr-deployment/nginx.tar:nginx:latest", "arm64")
-	_, err := srcOpts.NewSystemContext()
+	_, err := srcOpts.NewSystemContext(ctx)
 	assert.NoError(t, err)
 	destOpts := NewImageOpts("dir:/tmp/nginx.dir", "arm64")
-	_, err = destOpts.NewSystemContext()
+	_, err = destOpts.NewSystemContext(ctx)
 	assert.NoError(t, err)
 }

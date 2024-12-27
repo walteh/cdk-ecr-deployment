@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/containers/image/v5/types"
@@ -46,41 +45,16 @@ func GetECRRegion(uri string) string {
 	return "us-east-1"
 }
 
-func GetECRLogin(region string) ([]ECRAuth, error) {
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithRegion(region),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("api client configuration error: %v", err.Error())
+func GetECRLogin(ctx context.Context, cfg aws.Config, region string) ([]ECRAuth, error) {
+	if region != "" {
+		cfg.Region = region
 	}
 
-	log.Printf("AWS_ENDPOINT_URL: %s", os.Getenv("AWS_ENDPOINT_URL"))
-
-	if os.Getenv("AWS_ENDPOINT_URL") != "" {
-		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
-		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				URL: os.Getenv("AWS_ENDPOINT_URL"),
-			}, nil
-		})
-	}
-
-	// client := ecr.NewFromConfig(cfg, func(opts *ecr.Options) {
-	// 	if os.Getenv("AWS_ENDPOINT_URL") != "" {
-	// 		// opts.EndpointOptions.UseDualStackEndpoint = aws.DualStackEndpointState(aws.DualStackEndpointStateEnabled)
-	// 		if !strings.Contains(os.Getenv("AWS_ENDPOINT_URL"), "amazonaws.com") {
-	// 			opts.EndpointOptions.DisableHTTPS = true
-	// 		}
-	// 		// opts.EndpointResolver = ecr.EndpointResolverFromURL(os.Getenv("AWS_ENDPOINT_URL"))
-	// 		opts.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
-	// 	}
-	// })
 	client := ecr.NewFromConfig(cfg)
 
 	input := &ecr.GetAuthorizationTokenInput{}
 
-	resp, err := client.GetAuthorizationToken(context.TODO(), input)
+	resp, err := client.GetAuthorizationToken(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("error login into ECR: %v", err.Error())
 	}
@@ -131,8 +105,8 @@ func (s *ImageOpts) SetCreds(creds string) {
 	s.creds = creds
 }
 
-func (s *ImageOpts) NewSystemContext() (*types.SystemContext, error) {
-	ctx := &types.SystemContext{
+func (s *ImageOpts) NewSystemContext(ctx context.Context) (*types.SystemContext, error) {
+	ctxd := &types.SystemContext{
 		DockerRegistryUserAgent: "ecr-deployment",
 		DockerAuthConfig:        &types.DockerAuthConfig{},
 		ArchitectureChoice:      s.arch,
@@ -142,17 +116,17 @@ func (s *ImageOpts) NewSystemContext() (*types.SystemContext, error) {
 		log.Printf("Credentials login mode for %v", s.uri)
 
 		token := strings.SplitN(s.creds, ":", 2)
-		ctx.DockerAuthConfig = &types.DockerAuthConfig{
+		ctxd.DockerAuthConfig = &types.DockerAuthConfig{
 			Username: token[0],
 		}
 		if len(token) == 2 {
-			ctx.DockerAuthConfig.Password = token[1]
+			ctxd.DockerAuthConfig.Password = token[1]
 		}
 	} else {
 		if s.requireECRLogin {
 			log.Printf("ECR auto login mode for %v", s.uri)
 
-			auths, err := GetECRLogin(s.region)
+			auths, err := GetECRLogin(ctx, aws.Config{}, s.region)
 			if err != nil {
 				return nil, err
 			}
@@ -160,13 +134,13 @@ func (s *ImageOpts) NewSystemContext() (*types.SystemContext, error) {
 				return nil, fmt.Errorf("empty ECR login auth token list")
 			}
 			auth0 := auths[0]
-			ctx.DockerAuthConfig = &types.DockerAuthConfig{
+			ctxd.DockerAuthConfig = &types.DockerAuthConfig{
 				Username: auth0.User,
 				Password: auth0.Pass,
 			}
 		}
 	}
-	return ctx, nil
+	return ctxd, nil
 }
 
 func Dumps(v interface{}) string {
@@ -193,22 +167,15 @@ func GetCredsType(s string) string {
 	}
 }
 
-func GetSecret(secretId string) (secret string, err error) {
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-	)
-
+func GetSecret(ctx context.Context, cfg aws.Config, secretId string) (secret string, err error) {
 	if os.Getenv("AWS_ENDPOINT_URL") != "" {
 		cfg.BaseEndpoint = aws.String(os.Getenv("AWS_ENDPOINT_URL"))
 	}
 
 	log.Printf("get secret id: %s of region: %s", secretId, cfg.Region)
-	if err != nil {
-		return "", fmt.Errorf("api client configuration error: %v", err.Error())
-	}
 
 	client := secretsmanager.NewFromConfig(cfg)
-	resp, err := client.GetSecretValue(context.TODO(), &secretsmanager.GetSecretValueInput{
+	resp, err := client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{
 		SecretId: aws.String(secretId),
 	})
 	if err != nil {

@@ -14,12 +14,14 @@ import (
 
 func TestNewS3FileReader(t *testing.T) {
 	t.Skip()
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx)
 	assert.NoError(t, err)
 
 	s3uri, _ := ParseS3Uri("s3://cdk-ecr-deployment/nginx.tar")
 
-	f, err := NewS3File(cfg, *s3uri)
+	f, err := NewS3File(ctx, cfg, *s3uri)
 	assert.NoError(t, err)
 
 	log.Printf("file size: %d", f.Size())

@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/transports"
@@ -24,14 +25,16 @@ func init() {
 
 var Transport = &s3Transport{}
 
-type s3Transport struct{}
+type s3Transport struct {
+	cfg aws.Config
+}
 
 func (t *s3Transport) Name() string {
 	return "s3"
 }
 
 func (t *s3Transport) ParseReference(reference string) (types.ImageReference, error) {
-	return ParseReference(reference)
+	return ParseReference(reference, t.cfg)
 }
 
 func (t *s3Transport) ValidatePolicyConfigurationScope(scope string) error {
@@ -46,9 +49,10 @@ type s3ArchiveReference struct {
 	// If not -1, a zero-based index of the image in the manifest. Valid only for sources.
 	// Must not be set if ref is set.
 	sourceIndex int
+	cfg         aws.Config
 }
 
-func ParseReference(refString string) (types.ImageReference, error) {
+func ParseReference(refString string, cfg aws.Config) (types.ImageReference, error) {
 	if refString == "" {
 		return nil, errors.New("s3 reference cannot be empty")
 	}
@@ -85,10 +89,10 @@ func ParseReference(refString string) (types.ImageReference, error) {
 		}
 	}
 
-	return newReference(s3uri, nt, sourceIndex)
+	return newReference(cfg, s3uri, nt, sourceIndex)
 }
 
-func newReference(s3uri *tarfile.S3Uri, ref reference.NamedTagged, sourceIndex int) (types.ImageReference, error) {
+func newReference(cfg aws.Config, s3uri *tarfile.S3Uri, ref reference.NamedTagged, sourceIndex int) (types.ImageReference, error) {
 	if ref != nil && sourceIndex != -1 {
 		return nil, errors.Errorf("Invalid s3: reference: cannot use both a tag and a source index")
 	}
@@ -102,6 +106,7 @@ func newReference(s3uri *tarfile.S3Uri, ref reference.NamedTagged, sourceIndex i
 		s3uri:       s3uri,
 		ref:         ref,
 		sourceIndex: sourceIndex,
+		cfg:         cfg,
 	}, nil
 }
 
@@ -129,7 +134,7 @@ func (r *s3ArchiveReference) PolicyConfigurationNamespaces() []string {
 }
 
 func (r *s3ArchiveReference) NewImage(ctx context.Context, sys *types.SystemContext) (types.ImageCloser, error) {
-	src, err := newImageSource(ctx, sys, r)
+	src, err := newImageSource(ctx, r.cfg, sys, r)
 	if err != nil {
 		return nil, err
 	}
@@ -141,9 +146,13 @@ func (r *s3ArchiveReference) DeleteImage(ctx context.Context, sys *types.SystemC
 }
 
 func (r *s3ArchiveReference) NewImageSource(ctx context.Context, sys *types.SystemContext) (types.ImageSource, error) {
-	return newImageSource(ctx, sys, r)
+	return newImageSource(ctx, r.cfg, sys, r)
 }
 
 func (r *s3ArchiveReference) NewImageDestination(ctx context.Context, sys *types.SystemContext) (types.ImageDestination, error) {
 	return nil, fmt.Errorf(`s3 locations can only be read from, not written to`)
 }
+
+// func (r *s3ArchiveReference) getConfig(ctx context.Context) (config.Config, error) {
+// 	return config.LoadDefaultConfig(ctx)
+// }

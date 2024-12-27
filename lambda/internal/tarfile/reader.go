@@ -5,12 +5,11 @@ package tarfile
 
 import (
 	"archive/tar"
+	"cdk-ecr-deployment-handler/internal/iolimits"
 	"encoding/json"
 	"io"
 	"os"
 	"path"
-
-	"cdk-ecr-deployment-handler/internal/iolimits"
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/pkg/errors"

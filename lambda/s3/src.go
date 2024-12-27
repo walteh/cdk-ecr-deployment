@@ -7,7 +7,7 @@ import (
 	"cdk-ecr-deployment-handler/internal/tarfile"
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/containers/image/v5/types"
 )
 
@@ -20,12 +20,10 @@ func (s *s3ArchiveImageSource) Reference() types.ImageReference {
 	return s.ref
 }
 
-func newImageSource(ctx context.Context, sys *types.SystemContext, ref *s3ArchiveReference) (types.ImageSource, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return nil, err
-	}
-	f, err := tarfile.NewS3File(cfg, *ref.s3uri)
+func newImageSource(ctx context.Context, cfg aws.Config, sys *types.SystemContext, ref *s3ArchiveReference) (types.ImageSource, error) {
+	// Get AWS config from context
+
+	f, err := tarfile.NewS3File(ctx, cfg, *ref.s3uri)
 	if err != nil {
 		return nil, err
 	}
@@ -37,4 +35,5 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref *s3Archiv
 		S3FileSource: tarfile.NewSource(reader, false, ref.ref, ref.sourceIndex),
 		ref:          ref,
 	}, nil
+
 }
